@@ -1,0 +1,81 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        required: true
+        type: string
+      dist-path:
+        required: false
+        type: string
+        default: ""
+      artifact-prefix:
+        required: false
+        type: string
+        default: ""
+      root-path:
+        required: false
+        type: string
+        default: .
+      workspace:
+        required: false
+        type: string
+        default: ""
+      lint-command:
+        required: false
+        type: string
+        default: ""
+      build-command:
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.root-path }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Install packages
+        run: npm ci
+      - name: Run lint
+        if: ${{ inputs.lint-command != '' }}
+        run: |
+          if [[ "${{ inputs.workspace }}" == "" ]]; then
+            ${{ inputs.lint-command }}
+          else
+            ${{ inputs.lint-command }} --workspace=${{ inputs.workspace }}
+          fi
+      - name: Run build
+        if: ${{ inputs.build-command != '' }}
+        run: |
+          if [[ "${{ inputs.workspace }}" == "" ]]; then
+            ${{ inputs.build-command }}
+          else
+            ${{ inputs.build-command }} --workspace=${{ inputs.workspace }}
+          fi
+      - name: Get current version
+        if: ${{ github.event_name != 'pull_request' && inputs.build-command != '' }}
+        run: |
+          if [[ "${{ inputs.workspace }}" == "" ]]; then
+            version=$(npm pkg get version --workspaces=false | tr -d \")
+          else
+            version=$(npm pkg get version --workspace=${{ inputs.workspace }} | jq -r '."${{ inputs.workspace }}"')
+          fi
+          echo "version=$version" >> "$GITHUB_ENV"
+          nodeVersion=$(node -v | tr -d v)
+          echo "nodeVersion=$nodeVersion" >> "$GITHUB_ENV"
+      - name: Publish Artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ github.event_name != 'pull_request' && inputs.build-command != '' && inputs.dist-path != '' && inputs.artifact-prefix != '' }}
+        with:
+          name: '${{ inputs.artifact-prefix }}-${{ env.version }}-node-${{ env.nodeVersion }}'
+          path: ${{ inputs.root-path }}/${{ inputs.dist-path }}

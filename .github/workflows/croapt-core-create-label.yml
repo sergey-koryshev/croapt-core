@@ -1,0 +1,23 @@
+name: Create CroApt Core Version Label
+
+concurrency: versioning
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - epic/**
+
+jobs:
+  create_label:
+    name: Create Version Label
+    uses: sergey-koryshev/build-system/.github/workflows/create-version-label.yml@version-helper-v1.4.0
+    secrets:
+      REPO_TOKEN: ${{ secrets.REPO_PAT }}
+    with:
+      app-name: croapt-core
+      project-type: Node
+      workspace-name: croapt-core
+      version-configuration-path: version-configuration.json
+      scripts-ref: version-helper-v1.4.0

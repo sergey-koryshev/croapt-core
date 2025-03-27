@@ -1,0 +1,26 @@
+{
+  "name": "croapt-core",
+  "version": "0.0.1",
+  "description": "Core project for CroApt project containing base classes and logic",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "Sergey Koryshev",
+  "license": "MIT",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "lint": "npx eslint .",
+    "build": "npx tsc"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/node": "^22.13.10",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.5"
+  }
+}
