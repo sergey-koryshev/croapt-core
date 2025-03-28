@@ -13,6 +13,8 @@ jobs:
   create_label:
     name: Create Version Label
     uses: sergey-koryshev/build-system/.github/workflows/create-version-label.yml@version-helper-v1.4.0
+    permissions:
+      contents: write
     secrets:
       REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     with:
