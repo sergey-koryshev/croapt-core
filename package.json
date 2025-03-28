@@ -1,6 +1,6 @@
 {
   "name": "croapt-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Core project for CroApt project containing base classes and logic",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
