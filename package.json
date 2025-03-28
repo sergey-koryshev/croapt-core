@@ -6,8 +6,13 @@
   "types": "dist/index.d.ts",
   "author": "Sergey Koryshev",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sergey-koryshev/croapt-core.git"
+  },
   "files": [
-    "/dist"
+    "/dist",
+    "LICENSE.txt"
   ],
   "scripts": {
     "lint": "npx eslint .",
