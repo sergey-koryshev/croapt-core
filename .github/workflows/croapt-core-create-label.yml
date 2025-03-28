@@ -18,7 +18,6 @@ jobs:
     secrets:
       REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     with:
-      app-name: croapt-core
       project-type: Node
       version-configuration-path: version-configuration.json
       scripts-ref: version-helper-v1.4.0

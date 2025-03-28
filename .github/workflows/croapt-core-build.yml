@@ -32,3 +32,26 @@ jobs:
       node-version: 18.x
       lint-command: "npm run lint"
       build-command: "npm run build"
+  publish:
+    if: ${{ github.ref == 'refs/heads/master' && success() }}
+    needs: build
+    name: Publish CroApt Core package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install packages
+        run: npm ci
+      - name: Build the package
+        run: npm run build
+      - name: Publish the package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
