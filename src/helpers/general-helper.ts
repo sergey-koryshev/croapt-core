@@ -1,3 +1,8 @@
+/**
+ * Write error object in console.
+ * @param message Message to log with the error.
+ * @param err Error object.
+ */
 export function logError(message: string, err: unknown) {
   if (err instanceof Error) {
     console.log(`${message}${message.endsWith('.') ? '' : '.'} Error details: ${err.stack ?? err}`)
@@ -6,6 +11,12 @@ export function logError(message: string, err: unknown) {
   }
 }
 
+/**
+ * Wait for provided promise and suppress exception if any.
+ * @param promise The promise to wait.
+ * @param errorPrefix Error prefix to provide in log message.
+ * @returns A promise that resolves when the operation is complete.
+ */
 export async function safeWaitFor<T>(promise?: Promise<T>, errorPrefix?: string) {
   if (promise == null) {
     return
@@ -18,6 +29,12 @@ export async function safeWaitFor<T>(promise?: Promise<T>, errorPrefix?: string)
   }
 }
 
+/**
+ * 
+ * @param ms Waits for specified time in milliseconds.
+ * @param signal Abort signal to cancel the operation.
+ * @returns A promise that resolves when the operation is complete.
+ */
 export function waitFor(ms: number, signal?: AbortSignal) {
   return new Promise((resolve, reject) => {
     function abort() {

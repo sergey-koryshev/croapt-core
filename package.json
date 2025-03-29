@@ -1,7 +1,7 @@
 {
   "name": "@sergey-koryshev/croapt-core",
   "version": "0.0.7",
-  "description": "Core project for CroApt project containing base classes and logic",
+  "description": "Core project for CroApt project contains base classes and logic",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Sergey Koryshev",
