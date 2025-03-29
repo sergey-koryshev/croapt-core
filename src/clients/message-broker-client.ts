@@ -1,9 +1,12 @@
 import { connect, Channel, ChannelModel, ConsumeMessage, Replies } from 'amqplib'
-import { MessageBrokerConfig, ScrapperMessage } from '../contracts'
+import { MessageBrokerConfig, ScraperMessage } from '../contracts'
 
 export type MessageHandler = (message: ConsumeMessage, channel: Channel) => Promise<void>
 export type QueuePreparationHandler = (queue: Replies.AssertQueue, channel: Channel) => Promise<void>
 
+/**
+ * Class to work with Message Broker based on AMQP
+ */
 export class MessageBrokerClient {
   private connection?: ChannelModel
   private channel?: Channel
@@ -14,8 +17,18 @@ export class MessageBrokerClient {
   private consumerTag?: string
   private isProcessing = false
 
+  /**
+   * Creates new instance of class _MessageBrokerClient_.
+   * @param config Configuration of Message Broker.
+   * @param handleIncomingMessage Handler for incoming message.
+   * @param handleQueuePreparation Handler for queue preparation.
+   */
   constructor(private readonly config: MessageBrokerConfig, private readonly handleIncomingMessage?: MessageHandler, private readonly handleQueuePreparation?: QueuePreparationHandler) {}
 
+  /**
+   * Establishing connection with Message Broker.
+   * @returns A promise that resolves when the operation is complete.
+   */
   public async initialize(): Promise<void> {
     if (this.reconnectionTimeout != null) {
       clearTimeout(this.reconnectionTimeout)
@@ -55,6 +68,11 @@ export class MessageBrokerClient {
     console.log('Connection with the Message Broker instance was established.')
   }
 
+  /**
+   * Disposing current instance of _MessageBrokerClient_. It waits for ongoing message
+   * processing if any.
+   * @returns A promise that resolves when the operation is complete.
+   */
   public async dispose(): Promise<void> {
     console.log('Disposing broker client instance...')
 
@@ -91,7 +109,12 @@ export class MessageBrokerClient {
     }
   }
 
-  public async sendMessage(message: ScrapperMessage) {
+  /**
+   * Sends message to Message Broker's queue specified in configuration.
+   * @param message Message to be sent.
+   * @returns A promise that resolves when the operation is complete.
+   */
+  public async sendMessage(message: ScraperMessage) {
     if (this.channel == null) {
       throw Error('Message failed to be delivered because channel is not created yet.')
     }
@@ -103,6 +126,15 @@ export class MessageBrokerClient {
     this.channel.sendToQueue(this.config.brokerQueueName, Buffer.from(JSON.stringify(message)), {
       expiration: this.config.brokerMessageExpirationMs
     })
+  }
+
+  /**
+   * Checks if connection with Message Broker is healthy.
+   * @returns _true_ if connection with Message Broker is healthy, otherwise - _false_.
+   */
+  public healthCheck() {
+    return this.isBrokerReconnecting !== true &&
+           this.channel?.connection.sentSinceLastCheck == true
   }
 
   private async setUpConsumer(): Promise<void> {
@@ -152,11 +184,6 @@ export class MessageBrokerClient {
     console.log('The consumer was set up.')
   }
 
-  public healthCheck() {
-    return this.isBrokerReconnecting !== true &&
-           this.channel?.connection.sentSinceLastCheck == true
-  }
-
   private reconnect(force: boolean = false) {
     if (this.isBrokerReconnecting && !force) {
       console.log('Reconnection will be skipped since there is ongoing one.')
@@ -167,8 +194,8 @@ export class MessageBrokerClient {
     this.channel?.removeAllListeners()
     this.connection?.removeAllListeners()
 
-    console.log(`Wait for '${this.config.brokerReconnectionInterval}' milliseconds before reconnection...`)
-    this.reconnectionTimeout = setTimeout(() => this.initialize(), this.config.brokerReconnectionInterval)
+    console.log(`Wait for '${this.config.brokerReconnectionIntervalMs}' milliseconds before reconnection...`)
+    this.reconnectionTimeout = setTimeout(() => this.initialize(), this.config.brokerReconnectionIntervalMs)
   }
 
   private handleChannelClosed() {
