@@ -1,5 +1,5 @@
 import { connect, Channel, ChannelModel, ConsumeMessage, Replies } from 'amqplib'
-import { MessageBrokerConfig, ScrapperMessage } from '../contracts'
+import { MessageBrokerConfig, ScraperMessage } from '../contracts'
 
 export type MessageHandler = (message: ConsumeMessage, channel: Channel) => Promise<void>
 export type QueuePreparationHandler = (queue: Replies.AssertQueue, channel: Channel) => Promise<void>
@@ -114,7 +114,7 @@ export class MessageBrokerClient {
    * @param message Message to be sent.
    * @returns A promise that resolves when the operation is complete.
    */
-  public async sendMessage(message: ScrapperMessage) {
+  public async sendMessage(message: ScraperMessage) {
     if (this.channel == null) {
       throw Error('Message failed to be delivered because channel is not created yet.')
     }

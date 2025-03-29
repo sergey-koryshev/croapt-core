@@ -1,7 +1,7 @@
 /**
- * Type of Scrapper Message
+ * Type of Scraper Message
  */
-export enum ScrapperMessageType {
+export enum ScraperMessageType {
   // Apartment was added.
   APARTMENT_ADDED = 'apartment_added',
 
