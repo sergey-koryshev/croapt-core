@@ -1,5 +1,6 @@
 import { connect, Channel, ChannelModel, ConsumeMessage, Replies } from 'amqplib'
 import { MessageBrokerConfig, ScraperMessage } from '../contracts'
+import { LoggerFactory } from '../helpers'
 
 export type MessageHandler = (message: ConsumeMessage, channel: Channel) => Promise<void>
 export type QueuePreparationHandler = (queue: Replies.AssertQueue, channel: Channel) => Promise<void>
@@ -8,6 +9,8 @@ export type QueuePreparationHandler = (queue: Replies.AssertQueue, channel: Chan
  * Class to work with Message Broker based on AMQP
  */
 export class MessageBrokerClient {
+  private readonly logger = LoggerFactory.getLogger({ name: 'MessageBrokerClient' })
+
   private connection?: ChannelModel
   private channel?: Channel
   private queue?: Replies.AssertQueue
@@ -36,36 +39,35 @@ export class MessageBrokerClient {
     }
 
     try {
-      console.log(`Connecting to Message Broker instance '${this.config.brokerUrl}'...`)
+      this.logger.info(`Connecting to Message Broker instance '${this.config.brokerUrl}'...`)
       
       this.connection = await connect(`amqp://${this.config.brokerUsername}:${this.config.brokerPassword}@${this.config.brokerUrl}`)
       this.connection.on('error', (error) => this.handleConnectionFaulted(error))
-      this.connection.on('blocked', (reason) => console.log(`Connection was blocked by Message Broker instance by the following reason: ${reason}`))
-      this.connection.on('unblocked', () => console.log('Connection was unblocked by Message Broker instance.'))
+      this.connection.on('blocked', (reason) => this.logger.warn(`Connection was blocked by Message Broker instance by the following reason: ${reason}`))
+      this.connection.on('unblocked', () => this.logger.info('Connection was unblocked by Message Broker instance.'))
       
       this.isBrokerReconnecting = false
       this.isProcessing = false
       this.consumerTag = undefined
     } catch(error: unknown) {
-      console.log(`Error has occurred while connecting to Message Broker instance: ${error}`)
+      this.logger.error(error, 'Error has occurred while connecting to Message Broker instance')
       this.reconnect(true)
       return Promise.resolve()
     }
 
-    console.log('Initializing channel...')
+    this.logger.info('Initializing channel...')
     this.channel = await this.connection.createChannel()
     this.channel.on('error', (error) => this.handleChannelFaulted(error))
     this.channel.on('close', () => this.handleChannelClosed())
 
-    console.log(`Ensuring that queue '${this.config.brokerQueueName}' exists...`)
+    this.logger.info(`Ensuring that queue '${this.config.brokerQueueName}' exists...`)
     this.queue = await this.channel.assertQueue(this.config.brokerQueueName, { durable: true })
 
     if (this.handleIncomingMessage != null) {
-      console.log('Setting up consumer')
       await this.setUpConsumer()
     }
 
-    console.log('Connection with the Message Broker instance was established.')
+    this.logger.info('Connection with the Message Broker instance was established.')
   }
 
   /**
@@ -74,7 +76,7 @@ export class MessageBrokerClient {
    * @returns A promise that resolves when the operation is complete.
    */
   public async dispose(): Promise<void> {
-    console.log('Disposing broker client instance...')
+    this.logger.info('Disposing broker client instance...')
 
     if (this.reconnectionTimeout != null) {
       clearTimeout(this.reconnectionTimeout)
@@ -83,11 +85,11 @@ export class MessageBrokerClient {
 
     if (this.channel != null && this.consumerTag != null) {
       await this.channel.cancel(this.consumerTag)
-      console.log('Cancelled receiving messages')
+      this.logger.info('Cancelled receiving messages')
     }
 
     if (this.channel != null && this.isProcessing) {
-      console.log('Wait for consumer to stop processing current message')
+      this.logger.info('Wait for consumer to stop processing current message')
       const checkProcessing = async () => {
         if (this.isProcessing) {
             await new Promise(resolve => setTimeout(resolve, 500))
@@ -105,7 +107,7 @@ export class MessageBrokerClient {
       await this.channel?.close()
       await this.connection?.close()
     } catch (error: unknown) {
-      console.warn(`Error has occurred while closing broker's connection: ${error}`)
+      this.logger.error(error, 'Error has occurred while closing broker\'s connection')
     }
   }
 
@@ -161,7 +163,7 @@ export class MessageBrokerClient {
     // makes the processing messages one by one
     this.channel.prefetch(1, true)
 
-    console.log('Setting up a consumer...')
+    this.logger.info('Setting up a consumer...')
     const consumer = await this.channel.consume(
       this.config.brokerQueueName,
       async (message) => {
@@ -173,7 +175,7 @@ export class MessageBrokerClient {
           this.isProcessing = true
           await this.handleIncomingMessage(message, this.channel)
         } catch(error: unknown) {
-          console.log(`Error has occurred while handling incoming message: ${error}`)
+          this.logger.error(error, 'Error has occurred while handling incoming message')
         } finally {
           this.isProcessing = false
         }
@@ -181,12 +183,12 @@ export class MessageBrokerClient {
     )
 
     this.consumerTag = consumer.consumerTag 
-    console.log('The consumer was set up.')
+    this.logger.info('The consumer was set up.')
   }
 
   private reconnect(force: boolean = false) {
     if (this.isBrokerReconnecting && !force) {
-      console.log('Reconnection will be skipped since there is ongoing one.')
+      this.logger.info('Reconnection will be skipped since there is ongoing one.')
       return
     }
 
@@ -194,22 +196,22 @@ export class MessageBrokerClient {
     this.channel?.removeAllListeners()
     this.connection?.removeAllListeners()
 
-    console.log(`Wait for '${this.config.brokerReconnectionIntervalMs}' milliseconds before reconnection...`)
+    this.logger.info(`Wait for '${this.config.brokerReconnectionIntervalMs}' milliseconds before reconnection...`)
     this.reconnectionTimeout = setTimeout(() => this.initialize(), this.config.brokerReconnectionIntervalMs)
   }
 
   private handleChannelClosed() {
-    console.log('The channel was unexpectedly closed.')
+    this.logger.error('The channel was unexpectedly closed.')
     this.reconnect()
   }
 
   private handleChannelFaulted(error: unknown) {
-    console.log(`Channel faulted with error: ${error}`)
+    this.logger.error(error, 'Channel faulted with error')
     this.reconnect()
   }
 
   private handleConnectionFaulted(error: unknown) {
-    console.log(`Connection to RabbitMQ instance was interrupted: ${error}`)
+    this.logger.error(error, 'Connection to RabbitMQ instance was interrupted')
     this.reconnect()
   }
 }
