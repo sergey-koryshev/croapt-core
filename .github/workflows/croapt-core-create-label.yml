@@ -12,12 +12,20 @@ on:
 jobs:
   create_label:
     name: Create Version Label
-    uses: sergey-koryshev/build-system/.github/workflows/create-version-label.yml@version-helper-v1.4.0
+    runs-on: ubuntu-latest
     permissions:
-      contents: write
-    secrets:
-      REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    with:
-      project-type: Node
-      version-configuration-path: version-configuration.json
-      scripts-ref: version-helper-v1.4.0
+      pull-requests: read
+    env:
+      ROOT_PATH: source/frontend
+      PRODUCT_VERSION_FILE: version.json
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Increment Version
+        uses: sergey-koryshev/bump-version@v1.0.4
+        with:
+          project-type: Node
+          version-configuration-path: version-configuration.json
