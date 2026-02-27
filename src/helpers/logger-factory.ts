@@ -21,7 +21,7 @@ export class LoggerFactory {
    * Sets the global logger stream.
    */
   public static set stream(stream: pino.DestinationStream) {
-    this.loggerStream = stream
+    LoggerFactory.loggerStream = stream
   }
 
   /**
