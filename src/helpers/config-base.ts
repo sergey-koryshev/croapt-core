@@ -7,12 +7,12 @@ import * as fs from 'fs'
  */
 export abstract class ConfigBase<T extends ConfigBase<T>> {
   /**
-   * The loaded configuration object of type T.
+   * The loaded configuration object of type Partial<T>.
    */
   protected readonly config: Partial<T>
 
   /**
-   * The loaded secrets object of type T.
+   * The loaded secrets object of type Partial<T>.
    */
   protected readonly secrets: Partial<T>
 
