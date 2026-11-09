@@ -1,23 +1,13 @@
-/**
- * Write error object in console.
- * @param message Message to log with the error.
- * @param err Error object.
- */
-export function logError(message: string, err: unknown) {
-  if (err instanceof Error) {
-    console.log(`${message}${message.endsWith('.') ? '' : '.'} Error details: ${err.stack ?? err}`)
-  } else {
-    console.log(message)
-  }
-}
+import { LoggerFactory } from './logger-factory'
+
+const logger = LoggerFactory.getLogger({ name: 'GeneralHelper' })
 
 /**
  * Wait for provided promise and suppress exception if any.
  * @param promise The promise to wait.
- * @param errorPrefix Error prefix to provide in log message.
  * @returns A promise that resolves when the operation is complete.
  */
-export async function safeWaitFor<T>(promise?: Promise<T>, errorPrefix?: string) {
+export async function safeWaitFor<T>(promise?: Promise<T>) {
   if (promise == null) {
     return
   }
@@ -25,7 +15,7 @@ export async function safeWaitFor<T>(promise?: Promise<T>, errorPrefix?: string)
   try {
     return await promise
   } catch (error: unknown) {
-    logError(errorPrefix ?? 'Error has occurred while waiting for process to complete.', error)
+    logger.error(error, 'Error has occurred while waiting for process to complete.')
   }
 }
 
