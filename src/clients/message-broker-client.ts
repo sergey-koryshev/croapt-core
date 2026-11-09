@@ -2,7 +2,17 @@ import { connect, Channel, ChannelModel, ConsumeMessage, Replies } from 'amqplib
 import { MessageBrokerConfig, ScraperMessage } from '../contracts'
 import { LoggerFactory } from '../helpers'
 
+/**
+ * Handler for incoming messages.
+ * The implementor is responsible for acknowledging the message via `channel.ack(message)`.
+ * If not acked, the message will be re-delivered after channel close or consumer cancel.
+ */
 export type MessageHandler = (message: ConsumeMessage, channel: Channel) => Promise<void>
+
+/**
+ * Handler for queue preparation.
+ * The implementor can add specific logic to manage initial state of queue.
+ */
 export type QueuePreparationHandler = (queue: Replies.AssertQueue, channel: Channel) => Promise<void>
 
 /**
@@ -55,19 +65,24 @@ export class MessageBrokerClient {
       return Promise.resolve()
     }
 
-    this.logger.info('Initializing channel...')
-    this.channel = await this.connection.createChannel()
-    this.channel.on('error', (error) => this.handleChannelFaulted(error))
-    this.channel.on('close', () => this.handleChannelClosed())
+    try {
+      this.logger.info('Initializing channel...')
+      this.channel = await this.connection.createChannel()
+      this.channel.on('error', (error) => this.handleChannelFaulted(error))
+      this.channel.on('close', () => this.handleChannelClosed())
 
-    this.logger.info(`Ensuring that queue '${this.config.brokerQueueName}' exists...`)
-    this.queue = await this.channel.assertQueue(this.config.brokerQueueName, { durable: true })
+      this.logger.info(`Ensuring that queue '${this.config.brokerQueueName}' exists...`)
+      this.queue = await this.channel.assertQueue(this.config.brokerQueueName, { durable: true })
 
-    if (this.handleIncomingMessage != null) {
-      await this.setUpConsumer()
+      if (this.handleIncomingMessage != null) {
+        await this.setUpConsumer()
+      }
+
+      this.logger.info('Connection with the Message Broker instance was established.')
+    } catch (error) {
+      this.logger.error(error, 'Error has occurred while initializing channel/queue')
+      this.reconnect()
     }
-
-    this.logger.info('Connection with the Message Broker instance was established.')
   }
 
   /**
@@ -125,9 +140,13 @@ export class MessageBrokerClient {
       throw Error('Message failed to be delivered because queue is not created yet.')
     }
 
-    this.channel.sendToQueue(this.config.brokerQueueName, Buffer.from(JSON.stringify(message)), {
+    const sent = this.channel.sendToQueue(this.config.brokerQueueName, Buffer.from(JSON.stringify(message)), {
       expiration: this.config.brokerMessageExpirationMs
     })
+
+    if (!sent) {
+      throw Error('Message failed to be delivered because the channel is no longer open.')
+    }
   }
 
   /**
@@ -168,7 +187,18 @@ export class MessageBrokerClient {
       this.config.brokerQueueName,
       async (message) => {
         if (message == null) {
-          throw new Error('Message is empty.')
+          this.logger.error('Message is empty.')
+          return
+        }
+
+        if (this.channel == null) {
+          this.logger.error('Message cannot be processed because the channel is not created yet.')
+          return
+        }
+
+        if (this.handleIncomingMessage == null) {
+          this.logger.error('Message cannot be processed because the message handler is not registered.')
+          return
         }
 
         try {
@@ -195,6 +225,11 @@ export class MessageBrokerClient {
     this.isBrokerReconnecting = true
     this.channel?.removeAllListeners()
     this.connection?.removeAllListeners()
+
+    this.channel?.close().catch((err) => this.logger.error(err, 'Failed to close stale channel'))
+    this.connection?.close().catch((err) => this.logger.error(err, 'Failed to close stale connection'))
+    this.channel = undefined
+    this.connection = undefined
 
     this.logger.info(`Wait for '${this.config.brokerReconnectionIntervalMs}' milliseconds before reconnection...`)
     this.reconnectionTimeout = setTimeout(() => this.initialize(), this.config.brokerReconnectionIntervalMs)
